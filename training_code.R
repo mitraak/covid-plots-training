@@ -12,7 +12,7 @@ library(maps)
 # NOTE: update this to reflect current location of the script
 setwd('~/workspace/pc-training/covid-plots-training')
 
-# location of the data file
+# name of the data file
 data.file <- 'covid-data.xlsx'
 
 # Here we find out the names of the sheets in the excel file
@@ -32,15 +32,15 @@ for(i in 1:length(sheet.names)){
     # - We first convert column names to numeric format
     # - If the output is not NA, then that column name is a date. We check that with the is.na() function
     # - is.na() returns a vector of TRUE or FALSE values. TRUE corresponds to NA in numeric.cols,
-    #   FALSE == not NA. We want the TRUE locations.
-    # - the which() function returns the TRUE locations. These are the date columns
+    #   while FALSE is not NA. We want the FALSE locations.
+    # - the which() function returns the TRUE locations. These are the date columns.
     numeric.cols <- as.numeric(colnames(covid.df))
     date.cols <- which(!is.na(numeric.cols))
 
     # Some countries have province/state info, some don't. We want to work with country-level data, so
     # here we sum all the state-level numbers into one value for each country.
     #
-    # 1. For this we first group the rows by 'Country/Region'
+    # 1. For this, we first group the rows by 'Country/Region'
     # 2. We select the date columns that we calculated above
     # 3. Then we sum all the state numbers for each country
     states.df <- covid.df %>%
@@ -49,17 +49,20 @@ for(i in 1:length(sheet.names)){
         summarize_each(funs=sum)
 
     # 1. Long-form data vs short-form data
-    # The above step generates long-form data which is of the form:
+    # 
+    # The above step generates data which is of the form:
     #
     # country      1-22-2020   2-22-2020 .  .  .
     # Afghanistan  0           0
     # Albania      0           0
+    # .
+    # .
     #
     # So, each row represents a country, with numbers from all dates in different columns.
-    # This is called long-form data. For each of visualization and other analysis, it is
+    # This is called long-form data. For visualization and other subsequent analysis, it is
     # often useful to use short-form data, e.g.
     #
-    # country      date       value
+    # country      name       value
     # Afghanistan  1-22-2020  0
     # Afghanistan  2-22-2020  0
     # .
@@ -67,7 +70,14 @@ for(i in 1:length(sheet.names)){
     # Albania      1-22-2020  0
     # Albania      2-22-2020  0
     #
-    # Note that here we have multiple rows for each country, but we have only 3 columns.
+    # Note:
+    #
+    # - Here we have multiple rows for each country, but we have only 3 columns. By default, the
+    #   command creates a 'name' column with the column names, and 'value' column with the values
+    #   in the data frame.
+    # - We rename the 'name' column to date using the 'names_to' argument.
+    # - We rename the 'value' column to the name of the sheet, using the 'values_to' argument.
+    #
     #
     # 2. Convert date format with mutate
     #
@@ -77,7 +87,10 @@ for(i in 1:length(sheet.names)){
     # - first, the date values have to be numeric
     # - then, the as.Date() function with the argument origin='1899-12-30' has to be used.
     #
-    # Note that since the new column is also called 'date', it just replaces the old 'date' column.
+    # Note:
+    #
+    # - Since the new column is also called 'date', it just replaces the old 'date' column.
+    # - We rename the 'value' column to the name of the current sheet.
     countries.df <- states.df %>%
         pivot_longer(-`Country/Region`,
                      names_to='date',
@@ -86,10 +99,11 @@ for(i in 1:length(sheet.names)){
 
     # Here we accumulate the data from the multiple sheets into the long.df data frame
     #
-    # - The first time this is run, long.df is empty. So, the current data set (countries.df) is
-    #   assigned to long.df
-    # - On subsequent loops, we do an inner_join to add the value from the new sheet as a new column
-    #   to long.df
+    # - The first time this is run, 'long.df' is empty. So, the current data set (countries.df) is
+    #   assigned to 'long.df'
+    # - On subsequent loops, 'countries.df' has one new column corresponding to the current sheet being read
+    #   that does not already exist in 'long.df'
+    # - So we do an inner_join to add this new column to 'long.df'. 'inner_join' compares the two data sets
     if(nrow(long.df) == 0){
       long.df <- countries.df
     } else {
@@ -105,9 +119,11 @@ long.df <- long.df %>%
 # Here we select the dates to be plotted on maps. For this we select rows from the
 # data set using the filter() function.
 #
-# - The plot.dates variable holds the dates to be plotted
+# - The 'plot.dates' variable holds the dates to be plotted. The as.Date() function is used here
+#   to convert the strings to dates. This is necessary since we will be filtering dates from
+#   the long.df data frame.
 # - The filter() function is used to filter on the date column. '%in%' checks for the presence of
-#   values from plot.dates in the date column of long.df
+#   values from 'plot.dates' in the date column of 'long.df'
 #
 plot.dates <- as.Date(c('2020-03-01', '2020-05-01'))
 long.df.subset <- long.df %>%
